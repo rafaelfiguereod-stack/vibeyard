@@ -66,7 +66,9 @@ export class ClaudeProvider implements CliProvider {
       args.push(opts.initialPrompt);
     }
     if (opts.extraArgs) {
-      args.push(...opts.extraArgs.split(/\s+/).filter(Boolean));
+      // Security: reject tokens containing shell metacharacters or null bytes.
+      const UNSAFE = /[\x00\n\r;|&`$(){}<>!'"\\]/;
+      args.push(...opts.extraArgs.split(/\s+/).filter(t => t && !UNSAFE.test(t)));
     }
     return args;
   }

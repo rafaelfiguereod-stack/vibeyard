@@ -54,7 +54,8 @@ export class GeminiProvider implements CliProvider {
       args.push('-r', opts.cliSessionId);
     }
     if (opts.extraArgs) {
-      args.push(...opts.extraArgs.split(/\s+/).filter(Boolean));
+      const UNSAFE = /[\x00\n\r;|&`$(){}<>!'"\\]/;
+      args.push(...opts.extraArgs.split(/\s+/).filter(t => t && !UNSAFE.test(t)));
     }
     if (opts.initialPrompt) {
       args.push('-i', opts.initialPrompt);
