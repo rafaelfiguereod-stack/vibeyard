@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import type { CostData, ProviderId, CliProviderMeta, StatsCache, ReadinessResult, ToolFailureData, SettingsWarningData, SettingsValidationResult, StatusLineConflictData, InspectorEvent, ProviderConfig, ReadFileResult, FileStatResult, TopFilesResult, DeepSearchResult, GithubFetchResult, GithubRepo } from '../shared/types';
-import { ZOOM_MIN, ZOOM_MAX } from '../shared/types';
+
+// Inlined to avoid a local require() that is blocked in Electron's sandbox mode.
+const ZOOM_MIN = 0.75;
+const ZOOM_MAX = 2.0;
 
 export type { CostData } from '../shared/types';
 

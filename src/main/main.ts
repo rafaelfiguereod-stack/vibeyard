@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, powerMonitor, shell } from 'electron';
+import { app, BrowserWindow, dialog, powerMonitor, shell, session } from 'electron';
 import * as path from 'path';
 import { registerIpcHandlers, resetHookWatcher } from './ipc-handlers';
 import { killAllPtys } from './pty-manager';
@@ -8,6 +8,9 @@ import { restartAndResync } from './hook-status';
 import { initProviders, getAllProviders } from './providers/registry';
 import { initAutoUpdater } from './auto-updater';
 import { stopGitWatcher } from './git-watcher';
+import { stopAllFileWatchers } from './file-watcher';
+import { stopCodexSessionWatcher } from './codex-session-watcher';
+import { disconnectAll as disconnectAllMcp } from './mcp-client';
 import { checkPythonAvailable } from './prerequisites';
 import { isMac } from './platform';
 import { isCloseConfirmed, setCloseConfirmed } from './close-state';
@@ -37,7 +40,7 @@ function createWindow(): void {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload', 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false, // needed for node-pty IPC
+      sandbox: true,
       webviewTag: true, // needed for browser-tab sessions
     },
   });
@@ -76,6 +79,30 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  // H-01: Inject a Content-Security-Policy for the local file:// renderer.
+  // Does not affect webview (browser-tab) sessions — those run in a separate
+  // renderer process with their own session.
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    if (details.url.startsWith('file://')) {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'none'; " +
+            "script-src 'self'; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data: blob:; " +
+            "font-src 'self'; " +
+            "connect-src 'self'; " +
+            "media-src 'self' blob:;",
+          ],
+        },
+      });
+    } else {
+      callback({});
+    }
+  });
+
   initProviders();
 
   const providers = getAllProviders();
@@ -152,6 +179,9 @@ app.on('before-quit', (event) => {
   }
   killAllPtys();
   stopGitWatcher();
+  stopAllFileWatchers();
+  stopCodexSessionWatcher();
+  void disconnectAllMcp();
   // Cleanup all providers
   for (const provider of getAllProviders()) {
     provider.cleanup();
