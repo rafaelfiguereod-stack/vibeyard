@@ -17,6 +17,12 @@ const connections = new Map<string, McpConnection>();
 
 export async function connect(id: string, url: string): Promise<McpResult> {
   try {
+    // Security: only allow HTTP(S) MCP endpoints — reject file://, javascript:, etc.
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { success: false, error: `Unsupported MCP URL scheme: ${parsed.protocol}` };
+    }
+
     // Disconnect existing connection if any
     await disconnect(id);
 

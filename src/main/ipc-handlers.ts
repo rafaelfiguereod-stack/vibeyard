@@ -214,7 +214,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('fs:isDirectory', (_event, filePath: string) => {
     try {
-      return fs.statSync(expandUserPath(filePath)).isDirectory();
+      const resolved = path.resolve(expandUserPath(filePath));
+      if (!isAllowedReadPath(resolved)) return false;
+      return fs.statSync(resolved).isDirectory();
     } catch {
       return false;
     }
@@ -226,7 +228,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('fs:listDirs', (_event, dirPath: string, prefix?: string) => {
     try {
-      const expanded = expandUserPath(dirPath);
+      const expanded = path.resolve(expandUserPath(dirPath));
+      if (!isAllowedReadPath(expanded)) return [];
       const entries = fs.readdirSync(expanded, { withFileTypes: true });
       const lowerPrefix = prefix?.toLowerCase();
       return entries
@@ -725,6 +728,24 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mcp:removeServer', (_event, name: string, filePath: string, scope: 'user' | 'project', projectPath?: string) => {
     try {
+      // Security: validate filePath against known MCP config locations to prevent arbitrary writes.
+      const home = os.homedir();
+      const allowedPaths = [
+        path.join(home, '.claude.json'),
+        path.join(home, '.mcp.json'),
+        path.join(home, '.claude', 'settings.json'),
+      ];
+      if (projectPath) {
+        allowedPaths.push(
+          path.join(projectPath, '.mcp.json'),
+          path.join(projectPath, '.claude', 'settings.json'),
+        );
+      }
+      const resolved = path.resolve(filePath);
+      if (!allowedPaths.some(p => path.resolve(p) === resolved)) {
+        console.warn(`mcp:removeServer blocked: ${resolved} is not a known config path`);
+        return { success: false, error: 'Invalid config file path' };
+      }
       removeMcpServer(name, filePath, scope, projectPath);
       return { success: true };
     } catch (err) {
