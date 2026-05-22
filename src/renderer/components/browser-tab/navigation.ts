@@ -1,6 +1,7 @@
 import type { BrowserTabInstance } from './types.js';
 
-const KNOWN_SCHEMES = /^(https?|file|ftp|ftps|about|chrome|data|blob|view-source|javascript|mailto):/i;
+// javascript: is intentionally excluded — it is a code-injection vector and must never be loaded.
+const KNOWN_SCHEMES = /^(https?|file|ftp|ftps|about|chrome|data|blob|view-source|mailto):/i;
 
 export function normalizeUrl(url: string): string {
   const trimmed = url.trim();

@@ -102,7 +102,18 @@ function resolveFilePath(instance: FileReaderInstance): string {
 }
 
 function showFileReaderMessage(body: Element, message: string): void {
-  body.innerHTML = `<div class="file-reader-content"><div class="file-reader-line"><span class="file-reader-line-text">${message}</span></div></div>`;
+  // Use DOM construction instead of innerHTML to avoid XSS risk from future
+  // callers that may pass non-literal strings.
+  const content = document.createElement('div');
+  content.className = 'file-reader-content';
+  const line = document.createElement('div');
+  line.className = 'file-reader-line';
+  const span = document.createElement('span');
+  span.className = 'file-reader-line-text';
+  span.textContent = message;
+  line.appendChild(span);
+  content.appendChild(line);
+  body.replaceChildren(content);
 }
 
 async function loadFile(instance: FileReaderInstance, sessionId: string): Promise<void> {
